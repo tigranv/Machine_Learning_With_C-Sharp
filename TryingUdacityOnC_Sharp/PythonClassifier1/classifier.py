@@ -30,7 +30,10 @@ detection systems.
 '''
 
 # Remember to update the script for the new data when you change this URL
-URL = "http://mlr.cs.umass.edu/ml/machine-learning-databases/spambase/spambase.data"
+import sys
+sys.path.append("../PythonClassifier1/TitanicData/train.csv")
+#URL = "http://mlr.cs.umass.edu/ml/machine-learning-databases/spambase/spambase.data"
+URL = "train.csv"
 
 # Uncomment this call when using matplotlib to generate images
 # rather than displaying interactive UI.
@@ -66,8 +69,7 @@ def download_data():
     #service.get_blob_to_path(container_name, blob_name, 'my_data.csv')
     #frame = read_table('my_data.csv', ...
 
-    frame = read_table(
-        URL,
+    frame = read_table("../PythonClassifier1/TitanicData/train.csv",
         
         # Uncomment if the file needs to be decompressed
         #compression='gzip',
@@ -92,8 +94,8 @@ def download_data():
         #index_col=-1,      # use the last column as row labels
 
         # Generate column headers row from each column number
-        header=None,
-        #header=0,          # use the first line as headers
+        #header=None,
+        header=0,          # use the first line as headers
 
         # Use manual headers and skip the first row in the file
         #header=0,
@@ -119,9 +121,9 @@ def get_features_and_labels(frame):
     # Replace missing values with 0.0, or we can use
     # scikit-learn to calculate missing values (below)
     #frame[frame.isnull()] = 0.0
-
+    #frame = frame.fillna(0)
     # Convert values to floats
-    arr = np.array(frame, dtype=np.float)
+    arr = np.array(frame)
 
     # Use the last column as the target value
     X, y = arr[:, :-1], arr[:, -1]
@@ -152,9 +154,9 @@ def get_features_and_labels(frame):
     
     # Fit the scaler based on the training data, then apply the same
     # scaling to both training and test sets.
-    scaler.fit(X_train)
-    X_train = scaler.transform(X_train)
-    X_test = scaler.transform(X_test)
+    #scaler.fit(X_train)
+    #X_train = scaler.transform(X_train)
+    #X_test = scaler.transform(X_test)
 
     # Return the training and test sets
     return X_train, X_test, y_train, y_test
