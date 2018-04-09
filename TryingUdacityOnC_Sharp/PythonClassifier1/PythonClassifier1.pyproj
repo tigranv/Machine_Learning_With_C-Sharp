@@ -26,6 +26,9 @@
     <Folder Include="TitanicData\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="TitanicData\gender_submission.csv" />
+    <Content Include="TitanicData\gender_submission1.csv" />
+    <Content Include="TitanicData\test.csv" />
     <Content Include="TitanicData\train.csv" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

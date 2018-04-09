@@ -40,9 +40,11 @@ URL = "train.csv"
 #import matplotlib
 #matplotlib.use('Agg')
 
-from pandas import read_table
+from pandas import read_table , get_dummies, concat
 import numpy as np
 import matplotlib.pyplot as plt
+import csv
+
 
 try:
     # [OPTIONAL] Seaborn makes plots nicer
@@ -108,11 +110,43 @@ def download_data():
     # Return the entire frame
     return frame
 
+def download_submission_data():
+    
+
+    frame = read_table("../PythonClassifier1/TitanicData/test.csv",
+
+        encoding='latin-1',
+
+        # Specify the separator in the data
+        sep=',',            # comma separated values
+
+        # Ignore spaces after the separator
+        skipinitialspace=True,
+
+        # Generate row labels from each row number
+        index_col=None,
+        #index_col=0,       # use the first column as row labels
+        #index_col=-1,      # use the last column as row labels
+
+        # Generate column headers row from each column number
+        #header=None,
+        header=0,          # use the first line as headers
+
+        # Use manual headers and skip the first row in the file
+        #header=0,
+        #names=['col1', 'col2', ...],
+    )
+
+    # Return a subset of the columns
+    #return frame[['col1', 'col4', ...]]
+
+    # Return the entire frame
+    return frame
 
 # =====================================================================
 
 
-def get_features_and_labels(frame):
+def get_features_and_labels(frame, frame_sub):
     '''
     Transforms and scales the input data and returns numpy arrays for
     training and testing inputs and targets.
@@ -123,49 +157,60 @@ def get_features_and_labels(frame):
     #frame[frame.isnull()] = 0.0
     #frame = frame.fillna(0)
     # Convert values to floats
-    arr = np.array(frame)
+    frame_lable = frame.iloc[:, -1]
+    frame_train = frame.iloc[:, :-1]
+    frame_features = frame_train.append(frame_sub)[[ "Pclass", "Sex", "Age", "Fare",  "SibSp", "Parch", "Fare", "Embarked"] ]
+    #frame_features = frame_features.fillna(0)
+
+    y = np.array(frame_lable, dtype=np.int)
+
+    frame_features = get_dummies(frame_features, columns=["Embarked"])
+    X_All = np.array(frame_features, dtype=np.float)
+    X = X_All[:891, :]
+    X_Sub = X_All[891:,:]
 
     # Use the last column as the target value
-    X, y = arr[:, :-1], arr[:, -1]
+    #X, y = arr[:, :-1], arr[:, -1]
     # To use the first column instead, change the index value
     #X, y = arr[:, 1:], arr[:, 0]
     
     # Use 80% of the data for training; test against the rest
     from sklearn.model_selection import train_test_split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
 
     # sklearn.pipeline.make_pipeline could also be used to chain 
     # processing and classification into a black box, but here we do
     # them separately.
     
     # If values are missing we could impute them from the training data
-    #from sklearn.preprocessing import Imputer
-    #imputer = Imputer(strategy='mean')
-    #imputer.fit(X_train)
-    #X_train = imputer.transform(X_train)
-    #X_test = imputer.transform(X_test)
-    
+    from sklearn.preprocessing import Imputer
+    imputer = Imputer(strategy='mean')
+    imputer.fit(X_train)
+    X_train = imputer.transform(X_train)
+    X_test = imputer.transform(X_test)
+    X_Sub = imputer.transform(X_Sub)
     # Normalize the attribute values to mean=0 and variance=1
-    from sklearn.preprocessing import StandardScaler
-    scaler = StandardScaler()
+    #from sklearn.preprocessing import StandardScaler
+    #scaler = StandardScaler()
     # To scale to a specified range, use MinMaxScaler
-    #from sklearn.preprocessing import MinMaxScaler
-    #scaler = MinMaxScaler(feature_range=(0, 1))
-    
+    from sklearn.preprocessing import MinMaxScaler
+    scaler = MinMaxScaler(feature_range=(0, 1))
+
     # Fit the scaler based on the training data, then apply the same
     # scaling to both training and test sets.
-    #scaler.fit(X_train)
-    #X_train = scaler.transform(X_train)
-    #X_test = scaler.transform(X_test)
+    scaler.fit(X_train)
+    X_train = scaler.transform(X_train)
+    X_test = scaler.transform(X_test)
+    X_Sub = scaler.transform(X_Sub)
 
     # Return the training and test sets
-    return X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test, X_Sub
 
 
 # =====================================================================
 
 
-def evaluate_classifier(X_train, X_test, y_train, y_test):
+def evaluate_classifier(X_train, X_test, y_train, y_test, X_Sub):
     '''
     Run multiple times with different classifiers to get an idea of the
     relative performance of each configuration.
@@ -212,6 +257,14 @@ def evaluate_classifier(X_train, X_test, y_train, y_test):
     # Fit the classifier
     classifier.fit(X_train, y_train)
     score = f1_score(y_test, classifier.predict(X_test))
+    Submission_pred = classifier.predict(X_Sub)
+    with open('../PythonClassifier1/TitanicData/gender_submission1.csv', 'w', newline='') as csvfile:
+        spamwriter = csv.writer(csvfile, delimiter=',')
+        spamwriter.writerow(['PassengerId'] + ['Survived'])
+        for i in range(len(Submission_pred)):
+            spamwriter.writerow([892 + i] + [int(Submission_pred[i])])
+            print("{} - {}".format(892+i, int(Submission_pred[i])))
+        
     # Generate the P-R curve
     y_prob = classifier.decision_function(X_test)
     precision, recall, _ = precision_recall_curve(y_test, y_prob)
@@ -278,14 +331,14 @@ if __name__ == '__main__':
     # Download the data set from URL
     print("Downloading data from {}".format(URL))
     frame = download_data()
+    frame_sub = download_submission_data()
 
     # Process data into feature and label arrays
     print("Processing {} samples with {} attributes".format(len(frame.index), len(frame.columns)))
-    X_train, X_test, y_train, y_test = get_features_and_labels(frame)
-
+    X_train, X_test, y_train, y_test, X_Sub = get_features_and_labels(frame, frame_sub)
     # Evaluate multiple classifiers on the data
     print("Evaluating classifiers")
-    results = list(evaluate_classifier(X_train, X_test, y_train, y_test))
+    results = list(evaluate_classifier(X_train, X_test, y_train, y_test, X_Sub))
 
     # Display the results
     print("Plotting the results")
